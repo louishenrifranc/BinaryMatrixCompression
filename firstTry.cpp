@@ -30,7 +30,6 @@ class CompressMatrix {
 		m_dispersion(dispersion),
 		m_nbRow(nbCol) {
 		
-		int nbBitForOneFeature;
 		if(dispersion == 1) {
 			nbBitForOneFeature = 1;
 		} else {
@@ -38,11 +37,12 @@ class CompressMatrix {
 		}
 
 
-		assert(nbCol % dispersion == 0);
+		//assert(nbCol % dispersion == 0);
 
-		m_nbCol = nbCol / dispersion;
-		m_nbCol = ceil((double)(m_nbCol) / 32);
-		m_nbCol *= nbBitForOneFeature;
+		//m_nbCol = nbCol / dispersion;
+		//m_nbCol = ceil((double)(m_nbCol) / 32);
+		//m_nbCol *= nbBitForOneFeature;
+		m_nbCol = nbCol / 32;
 
 		m_nbRow = nbRow;
 
@@ -56,16 +56,14 @@ class CompressMatrix {
 		m[row] = (int32_t *) malloc(m_nbCol * sizeof(int32_t*));
 
 		unsigned int nbColData = sizeof(data) / sizeof(int8_t);
-		for(unsigned int32_t i(0);i<nbColData;i+= m_dispersion) {
-			unsigned int32_t k;
-			for(k(i);k < m_dispersion; k++) {
-				if(data[k] ==  1) {
-					break;
-				}
-			}
+		for(unsigned int32_t i(0);i<nbColData;i++) {
+			int index = m_nbCol / 32;
+			int shift = m_nbCol - shift * 32;
+			m[row][index] = (data[i] ? (1 << shift) : (0 << shift));
 		}
 	}
 
+	int8_t nbBitForOneFeature;
 	int8_t m_dispersion;
 	int32_t ** m;
 	int32_t m_nbRow;
