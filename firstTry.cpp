@@ -69,7 +69,8 @@ public:
                 float result = 0;
                 int index,shift;
                 auto m_row = m[row];
-                #pragma omp parallel for private(index, shift) shared(rowA) reduction(+:result)
+
+                //#pragma omp parallel for private(index, shift) shared(rowA) reduction(+:result)
                 for (index = 0; index < m_nbCol; index++) {
                         for(shift = 0; shift < 32; shift++) {
                         	result += ((m_row[index] & (1 << shift)) ? rowA[index * 32 + shift] : 0);
@@ -78,11 +79,40 @@ public:
                 return result;
         }
 
+        inline void multiply(const float** B) {
+        	for(int row(0);row < m_nbRow;row++) {
+
+
+        	}
+        }
+
         uint32_t **m;
         uint32_t  m_nbRow;
         uint32_t  m_oldnbCol;
         uint32_t  m_nbCol;
 };
+
+
+void transposeMatrix(float** B,const size_t nbRow, const size_t nbCol) {
+	float** tmp = (float **) malloc(nbCol *sizeof(float *));
+
+	for(size_t i(0);i<nbRow;i++) {
+		tmp[i] = (float*) 	malloc(nbRow * sizeof(float));
+		for(size_t j(0);j<nbCol;j++) {
+			tmp[j][i] = B[i][j];
+		}
+	}
+	int row = 0;
+	while(row < nbRow) {
+		delete[] B[row++];
+	}
+	B = tmp;
+}
+
+
+inline void matrixMultiplication(const size_t nbRow,const size_t nbHidden,const size_t ncCol,const float** A,const float** B) {
+
+}
 
 void testCompression() {
         CompressMatrix cp(100, 1000, 1);
@@ -160,14 +190,34 @@ void testMultiplyMatrix() {
         assert(result == result1);
 }
 
+
+void testTransposeMatrix() {
+	const size_t nbRow = 4;
+	const size_t nbCol = 5;
+	float** A = (float **) malloc(nbRow *sizeof(float *));
+	for(size_t i(0);i<nbRow;i++) {
+		A[i] = (float*) malloc(nbCol * sizeof(float));
+		for(size_t j(0);j<nbCol;j++) {
+			A[i][j] = rand()% 20;
+			cout << A[i][j] << " ";
+		}
+		cout << endl;
+	}
+
+	transposeMatrix(A,nbRow,nbCol);
+	for(int i(0);i<nbCol;i++) {for(int j(0);j<nbRow;j++) cout << A[i][j] << " "; delete[] A[i]; cout << endl;}
+
+}
+
 int main()
 {
 		// freopen("out.o","r",stdout);
         srand(time(nullptr));
         int i[] = { 1,2,3,4,5,6,9 };
         // generateMatrixBinary();
-        testCompression();
-        testMultiplyMatrix();
+        // testCompression();
+        // testMultiplyMatrix();
+        testTransposeMatrix();
 }
 
 
