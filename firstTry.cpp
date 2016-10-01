@@ -5,7 +5,7 @@
 #include <cassert>
 #include <ctime>
 #include <chrono>
-
+#include <string.h>
 using namespace std;
 // #include "tbb/tbb.h"
 const auto binary_matrix_nb_row = 1'000;
@@ -64,15 +64,16 @@ public:
                 }
         }
 
+
         inline float multiplyRow(const int& row, const float* rowA) {
                 float result = 0;
+                int index,shift;
                 auto m_row = m[row];
-                for (int i(0); i < m_oldnbCol; i++) {
-                        int index = i / 32;
-                        int8_t shift = i - index * 32;
-                        int bit = m[row][index] & (1 << shift);
-                        float value = rowA[i];
-                        result += ((m[row][index] & (1 << shift)) ? rowA[i] : 0);
+                #pragma omp parallel for private(index, shift) shared(rowA) reduction(+:result)
+                for (index = 0; index < m_nbCol; index++) {
+                        for(shift = 0; shift < 32; shift++) {
+                        	result += ((m_row[index] & (1 << shift)) ? rowA[index * 32 + shift] : 0);
+                	}
                 }
                 return result;
         }
@@ -134,9 +135,13 @@ void testMultiplyMatrix() {
 
         float result = 0, result1 = 0;
         auto start = chrono::high_resolution_clock::now();
-        for (int i(0); i < sizeColomn; i++) {
+        int i = 0;
+        // #pragma omp parallel for shared(data,array) private(i) reduction(+:result)
+        for (i = 0; i < sizeColomn; i++) {
                 result += data[i] * array[i];
+        
         }
+        
         auto end = chrono::high_resolution_clock::now();
         chrono::duration<double> diff = end - start;
         cout << "Simple multiplication  :" << diff.count() << " s\n";
@@ -151,12 +156,13 @@ void testMultiplyMatrix() {
 
 
         cout << "Fancy row multiplication  :" << diff.count() << " s\n";
-
+        cout << result << " " << result1 << endl;
         assert(result == result1);
 }
 
 int main()
 {
+		// freopen("out.o","r",stdout);
         srand(time(nullptr));
         int i[] = { 1,2,3,4,5,6,9 };
         // generateMatrixBinary();
@@ -164,3 +170,11 @@ int main()
         testMultiplyMatrix();
 }
 
+
+/* Result row multiplication:
+
+
+
+
+
+*/
