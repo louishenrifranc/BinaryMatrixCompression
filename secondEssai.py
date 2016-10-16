@@ -1,11 +1,13 @@
+import scipy.linalg.blas
 import numpy as np
 import time
 import multiprocessing
 import threading
+from multiprocessing import Process
 
 
-nb_col = 1000000
-nb_lig = 300
+nb_col = 100000
+nb_lig = 40
 nb_out = 30
 np.random.seed(42)
 
@@ -26,6 +28,7 @@ def mat_mul_reverse(x_, w_):
     """ iterate over n_sample"""
     for i in range(x_.shape[0]):
         mask = np.where(x_[i, :] == 1)
+
         """ iterate over n_hidden """
         for j in range(w_.shape[0]):
             z[i, j] = w_[j][mask].sum()
@@ -40,33 +43,33 @@ class MatMul:
         if x_.shape[0] < nb_cores:
             self.z1_ = mat_mul_reverse(x_, w_)
         else:
-            threads = []
             nb_op = x_.shape[0] / nb_cores
             self.z1_ = np.zeros((x_.shape[0], w_.shape[0]))
+            processes = []
             for i in range(nb_cores):
                 min_i = i * nb_op
                 max_i = (i + 1) * nb_op
                 if i == nb_cores - 1:
                     max_i = x_.shape[0]
-                t = threading.Thread(target=self.mat_mul_reverse_p, args=(x_, w_, min_i, max_i))
-                t.start()
-                threads.append(t)
+                p = Process(target=self.mat_mul_reverse_p, args=(x_, w_, min_i, max_i))
+                p.start()
+                processes.append(p)
 
-            for t in threads:
-                t.join()
+            for p in processes:
+                p.join()
+
         self.z1_ = self.z1_.T
 
     def mat_mul_reverse_p(self, x_, w_, min_index, max_index):
-        if len(x_.shape) > 2 | len(w_.shape) > 2:
-            raise "Dimensions of matrix is too high"
-        if x_.shape[1] != w_.shape[1]:
-            raise "Dimensions are incorrect for matrix multiplication"
         """ iterate over n_sample"""
         for i in range(min_index, max_index):
                 mask = np.where(x_[i, :] == 1)
                 """ iterate over n_hidden """
+                # self.z1_[i] = np.sum(w_[:, mask], axis=1).sum(axis=1)
                 for j in range(w_.shape[0]):
                     self.z1_[i, j] = w_[j][mask].sum()
+
+
 
 
 
@@ -86,7 +89,7 @@ def mat_mul_copy(x_, w_):
     for i in range(w_.shape[0]):
         copy = w_[i]
         for j in range(x_.shape[0]):
-            z[i, j] = copy[np.where(x_[j] == 1)].sum()
+            z[i, j] = np.sum(copy[np.where(x_[j] == 1)])
     return z
 
 
@@ -112,6 +115,10 @@ start_time = time.time()
 m = MatMul(mat_binary, mat_float)
 print("Mat mul reverse parallel--- %s seconds ---" % (time.time() - start_time))
 
+
+start_time = time.time()
+scipy.linalg.blas.dgemm(alpha=1.0, a=mat_float.T, b=mat_binary.T, trans_a=True)
+print("Reference scipy time : --- %s seconds ---" % (time.time() - start_time))
 # print(R1)
 # print(R2)
 # print(R3)
@@ -119,3 +126,9 @@ print("Mat mul reverse parallel--- %s seconds ---" % (time.time() - start_time))
 
 
 
+"""
+Reference numpy time : --- 0.961452960968 seconds ---
+Mat Mul reverse--- 3.14233088493 seconds ---
+Mat mul reverse parallel--- 2.30174279213 seconds ---
+Reference scipy time : --- 1.12295985222 seconds ---
+"""
