@@ -5,11 +5,12 @@ import multiprocessing
 import threading
 from multiprocessing import Process
 
-
-nb_col = 100000
+nb_col = 300000
 nb_lig = 40
 nb_out = 30
-np.random.seed(42)
+
+
+# np.random.seed(42)
 
 
 def mat_mul_reverse(x_, w_):
@@ -24,10 +25,11 @@ def mat_mul_reverse(x_, w_):
     if x_.shape[1] != w_.shape[1]:
         raise "Dimensions are incorrect for matrix multiplication"
 
-    z = np.zeros((x_.shape[0], w_.shape[0]))
+    z = np.empty((x_.shape[0], w_.shape[0]))
     """ iterate over n_sample"""
     for i in range(x_.shape[0]):
-        mask = np.where(x_[i, :] == 1)
+        mask = np.argwhere(x_[i, :] == 1)
+        # z[i] = np.sum(w_[:, np.flatnonzero(x_[i, :] == 1)], axis=1)
 
         """ iterate over n_hidden """
         for j in range(w_.shape[0]):
@@ -36,15 +38,14 @@ def mat_mul_reverse(x_, w_):
 
 
 class MatMul:
-
     def __init__(self, x_, w_):
-        nb_cores = multiprocessing.cpu_count()
+        nb_cores = int(multiprocessing.cpu_count())
 
         if x_.shape[0] < nb_cores:
             self.z1_ = mat_mul_reverse(x_, w_)
         else:
             nb_op = x_.shape[0] / nb_cores
-            self.z1_ = np.zeros((x_.shape[0], w_.shape[0]))
+            self.z1_ = np.empty((x_.shape[0], w_.shape[0]))
             processes = []
             for i in range(nb_cores):
                 min_i = i * nb_op
@@ -63,14 +64,11 @@ class MatMul:
     def mat_mul_reverse_p(self, x_, w_, min_index, max_index):
         """ iterate over n_sample"""
         for i in range(min_index, max_index):
-                mask = np.where(x_[i, :] == 1)
-                """ iterate over n_hidden """
-                # self.z1_[i] = np.sum(w_[:, mask], axis=1).sum(axis=1)
-                for j in range(w_.shape[0]):
-                    self.z1_[i, j] = w_[j][mask].sum()
-
-
-
+            mask = np.where(x_[i, :] == 1)
+            """ iterate over n_hidden """
+            # self.z1_[i] = np.sum(w_[:, mask], axis=1)
+            for j in range(w_.shape[0]):
+                self.z1_[i, j] = np.sum(w_[j][mask])
 
 
 def mat_mul_copy(x_, w_):
@@ -93,42 +91,32 @@ def mat_mul_copy(x_, w_):
     return z
 
 
-mat_binary = np.random.randint(2, size=(nb_lig, nb_col))
-mat_float = np.random.uniform(-1, 1, size=(nb_out, nb_col))
+if __name__ == '__main__':
+    mat_binary = np.random.randint(2, size=(nb_lig, nb_col))
+    mat_float = np.random.uniform(-1, 1, size=(nb_out, nb_col))
 
-start_time = time.time()
-np.dot(mat_float, mat_binary.T)
-print("Reference numpy time : --- %s seconds ---" % (time.time() - start_time))
+    start_time = time.time()
+    np.dot(mat_float, mat_binary.T)
+    print("Reference numpy time : --- %s seconds ---" % (time.time() - start_time))
 
+    """ not good time at all """
+    # start_time = time.time()
+    # R3 = mat_mul_copy(mat_binary, mat_float)
+    # print("Mat Mul 1 copy--- %s seconds ---" % (time.time() - start_time))
 
-""" not good time at all """
-# start_time = time.time()
-# R3 = mat_mul_copy(mat_binary, mat_float)
-# print("Mat Mul 1 copy--- %s seconds ---" % (time.time() - start_time))
+    start_time = time.time()
+    mat_mul_reverse(mat_binary, mat_float)
+    print("Mat Mul reverse--- %s seconds ---" % (time.time() - start_time))
 
-start_time = time.time()
-mat_mul_reverse(mat_binary, mat_float)
-print("Mat Mul reverse--- %s seconds ---" % (time.time() - start_time))
+    start_time = time.time()
+    m = MatMul(mat_binary, mat_float)
+    print("Mat mul reverse parallel--- %s seconds ---" % (time.time() - start_time))
 
+    start_time = time.time()
+    scipy.linalg.blas.dgemm(alpha=1.0, a=mat_float.T, b=mat_binary.T, trans_a=True)
+    print("Reference scipy time : --- %s seconds ---" % (time.time() - start_time))
 
-start_time = time.time()
-m = MatMul(mat_binary, mat_float)
-print("Mat mul reverse parallel--- %s seconds ---" % (time.time() - start_time))
-
-
-start_time = time.time()
-scipy.linalg.blas.dgemm(alpha=1.0, a=mat_float.T, b=mat_binary.T, trans_a=True)
-print("Reference scipy time : --- %s seconds ---" % (time.time() - start_time))
 # print(R1)
 # print(R2)
 # print(R3)
 # print(m.z1_)
-
-
-
-"""
-Reference numpy time : --- 0.961452960968 seconds ---
-Mat Mul reverse--- 3.14233088493 seconds ---
-Mat mul reverse parallel--- 2.30174279213 seconds ---
-Reference scipy time : --- 1.12295985222 seconds ---
-"""
