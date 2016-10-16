@@ -27,15 +27,18 @@ void matmul(const int8_t* X, const double* W, const size_t nb_in, const size_t n
 
    // printf("%f %f",W[0], W[nb_hidden]);
 
+
    for(size_t i=0;i<nb_in;i++) {
         for(size_t k=0;k<nb_out;k++){
-            float res = 0;
-            for(int j=0;j<nb_hidden;j++) {
+            double res = 0;
+            size_t j;
+            # pragma omp parallel for private(j) reduction(+: res)
+            for(j=0;j<nb_hidden;j++) {
                 if(X[i*nb_hidden + j]) {
                     res += W[k*nb_hidden + j];
                 }
-                Y[i*nb_out + k] = res;
             }
+            Y[i*nb_out + k] = res;
         }
    }
 }
