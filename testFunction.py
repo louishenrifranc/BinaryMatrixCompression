@@ -12,9 +12,9 @@ intcpp = ndpointer(ctypes.c_int8, ndim=2, flags="C_CONTIGUOUS")
 matmul_c.argtypes = [intcpp, doublepp, ctypes.c_int, ctypes.c_int, ctypes.c_int, doublepp]
 
 np.random.seed(24)
-nb_hidden = 10000
-nb_in = 40
-nb_out = 30
+nb_hidden = 5
+nb_in = 4
+nb_out = 3
 
 mat_binary = np.random.randint(2, size=(nb_in, nb_hidden), dtype='int8')
 mat_float = np.random.uniform(-1, 1, size=(nb_out, nb_hidden))
@@ -29,7 +29,8 @@ start_time = time.time()
 R = np.dot(mat_float, mat_binary.T)
 print("Numpy --- %s seconds ---" % (time.time() - start_time))
 
-# print(res[1])
+print(res)
+print(R)
 
 
 # Perte d'informations il me semble (passage d'un double pas complet)
